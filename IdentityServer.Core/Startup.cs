@@ -1,9 +1,11 @@
-using IdentityServer.Core.Identity;
+using IdentityServer.Core.Context;
+using IdentityServer.Core.Models;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
+using System.Reflection;
 
 namespace IdentityServer.Core
 {
@@ -13,32 +15,54 @@ namespace IdentityServer.Core
         // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddIdentityServer(options =>
-                    {
-                        options.Events.RaiseErrorEvents = true;
-                        options.Events.RaiseInformationEvents = true;
-                        options.Events.RaiseFailureEvents = true;
-                        options.Events.RaiseSuccessEvents = true;
-                    })
-                    .AddInMemoryClients(Clients.Get())
-                    .AddInMemoryIdentityResources(Resources.GetIdentityResources())
-                    .AddInMemoryApiResources(Resources.GetApiResources())
-                    .AddInMemoryApiScopes(Resources.GetApiScopes())
-                    .AddTestUsers(Users.Get())
+            services.AddControllersWithViews();
+
+            const string connectionString = @"Filename=identity.db";
+            //const string connectionString =   @"Data Source=(LocalDb)\MSSQLLocalDB;database=Test.IdentityServer4.EntityFramework;trusted_connection=yes;";
+            var migrationsAssembly = typeof(Startup).GetTypeInfo().Assembly.GetName().Name;
+
+            services.AddDbContext<ApplicationDbContext>(builder => builder.UseSqlite(connectionString, sqlOptions => sqlOptions.MigrationsAssembly(migrationsAssembly)));
+
+            services.AddIdentity<ApplicationUser, IdentityRole>()
+              .AddEntityFrameworkStores<ApplicationDbContext>()
+              .AddDefaultTokenProviders();
+
+            IIdentityServerBuilder ids = services.AddIdentityServer(options =>
+                   {
+                       options.Events.RaiseErrorEvents = true;
+                       options.Events.RaiseInformationEvents = true;
+                       options.Events.RaiseFailureEvents = true;
+                       options.Events.RaiseSuccessEvents = true;
+                        // see https://identityserver4.readthedocs.io/en/latest/topics/resources.html
+                        options.EmitStaticAudienceClaim = true;
+                   })
                     .AddDeveloperSigningCredential();
+
+            ids.AddOperationalStore(options => options.ConfigureDbContext =
+                                            builder => builder.UseSqlite(
+                                                connectionString,
+                                                sqlOptions => sqlOptions.MigrationsAssembly(migrationsAssembly)))
+            .AddConfigurationStore(options => options.ConfigureDbContext =
+                                        builder => builder.UseSqlite(
+                                            connectionString,
+                                            sqlOptions => sqlOptions.MigrationsAssembly(migrationsAssembly)));
+
+            ids.AddAspNetIdentity<ApplicationUser>();
 
             services.AddAuthentication(options =>
             {
                 options.DefaultScheme = "cookie";
             })
             .AddCookie("cookie");
-
-            services.AddControllersWithViews();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
+            app.UseDeveloperExceptionPage();
+
+            Seeder.InitializeDbTestData(app);
+
             app.UseStaticFiles();
             app.UseRouting();
 
