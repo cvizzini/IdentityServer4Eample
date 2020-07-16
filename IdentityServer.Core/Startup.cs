@@ -1,5 +1,6 @@
 using IdentityServer.Core.Context;
 using IdentityServer.Core.Models;
+using IdentityServer4;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
@@ -54,6 +55,13 @@ namespace IdentityServer.Core
                 options.DefaultScheme = "cookie";
             })
             .AddCookie("cookie");
+
+
+            services.AddAuthentication().AddGoogle(opts => {
+                opts.SignInScheme = IdentityServerConstants.ExternalCookieAuthenticationScheme;
+                opts.ClientId = "";
+                opts.ClientSecret = "";             
+            });
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
