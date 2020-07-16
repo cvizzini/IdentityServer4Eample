@@ -59,8 +59,8 @@ namespace IdentityServer.Core
 
             services.AddAuthentication().AddGoogle(opts => {
                 opts.SignInScheme = IdentityServerConstants.ExternalCookieAuthenticationScheme;
-                opts.ClientId = "";
-                opts.ClientSecret = "";             
+                opts.ClientId = "<client id>";
+                opts.ClientSecret = "<client secret";             
             });
         }
 
